@@ -26,9 +26,9 @@ class Network_STEVFNs:
         self.base_folder = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         # EDITED: Added system parameter to establish start year in multi-year modeling with MPC
         self.system_parameters_df = pd.DataFrame({
-            "parameter": ["timestep", "discount_rate", "project_life", "scenario_start"],
-            "value" : [1, 0.05, 262800, 2025],# default values are [1hour, 5%, 30years, start at 2025]
-            "unit" : ["h", "unitless", "timestep", "year"]}).set_index("parameter")
+            "parameter": ["timestep", "discount_rate", "project_life", "control_horizon","scenario_start"],
+            "value" : [1, 0.05, 262800, 17520, 2025],# default values are [1hour, 5%, 30years, 1 year control, start at 2025]
+            "unit" : ["h", "unitless", "timestep", "timestep", "year"]}).set_index("parameter")
         self.system_structure_properties = dict({
             "simulated_timesteps" : 0,})
         self.scenario_name = ""

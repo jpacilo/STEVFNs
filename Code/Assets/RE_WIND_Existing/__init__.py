@@ -30,17 +30,12 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
     def __init__(self):
         super().__init__()
         # NEW ADDITION: Initialize attributes for multi year modeling
-        self.year_change_indices = []
+        self.year_change_indices = [0]
         self.power_flows = []
-
-        # self.existing_capacity_df = pd.DataFrame()
-        
-        # Initialize number of years in prediction horizon - currently hard coded, needs review
-        self.num_years = 2
-        
-        # EDITED: Parameter shape to fit control horizon in length, and initialize cost projection list
-        self.cost_fun_params = {"sizing_constant": cp.Parameter(shape=(self.num_years,), nonneg=True) }
         self.cost_projections = []
+        self.existing_capacity_df = pd.DataFrame()
+        # EDITED: Temporary initialization of cost_fun_params, shape defined in structure
+        self.cost_fun_params = {"sizing_constant": cp.Parameter(nonneg=True)}
         return
     
     def define_structure(self, asset_structure):
@@ -51,17 +46,16 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
                                            asset_structure["End_Time"], 
                                            self.period)
         self.number_of_edges = len(self.target_node_times)
+        # Define the number of years in the control horizon
+        self.num_years = int(self.network.system_parameters_df.loc["control_horizon", "value"] / 8760)
         self.gen_profile = cp.Parameter(shape = (self.number_of_edges), nonneg=True)
-        # NEW ADDITION: Determine how many years in control horizon from system params
-        # self.num_years = self.network.system_parameters_df.loc["project_life", "value"] / 8760
-        self.num_years = 2 # Hard-coded it for 2 years, need to figure out how to properly update with params
         # EDITED: set size of RE asset as array of sizes per horizon modeled
-        # self.flows = cp.Variable(shape=(self.num_years,), nonneg=True)
-        
-        # TESTING: To account for existing capacities
         self.flows = cp.Variable(shape=(self.num_years,), nonneg=True) # New capacities to install per year
-        self.existing_capacity = cp.Variable(shape=(self.num_years,), nonneg=True) # Cummulative installed capacity
-        
+        # self.existing_capacity = cp.Parameter(shape=(self.num_years,),
+        #                                       nonneg=True,)
+        self.final_capacity = None # javier
+        self.cost_fun_params = {"sizing_constant": cp.Parameter(shape=(self.num_years,),
+                                                                nonneg=True)}
         return
     
     def build_edge(self, edge_number):
@@ -70,9 +64,17 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         self.edges += [new_edge]
         new_edge.attach_target_node(self.network.extract_node(
             self.target_node_location, self.target_node_type, target_node_time))
-        # EDITED: Build power flows first with single capacity (first element in Parameter)
-        index_number = 0
-        new_edge.flow = self.flows[index_number] * self.gen_profile[edge_number]
+        # NEEDS TESTING:
+        # Initialize existing flows as zero if final_capacity is not updated yet to determine flow
+        index_number = 0 # Use only initial capacity from final_capacity array at this stage
+        self.existing_flows = 0
+        # self.existing_flows = cp.CallbackParam(callback=lambda:
+        #                                   (self.final_capacity[index_number].value * self.gen_profile[edge_number].value
+        #                                    if self.final_capacity[index_number].value is not None 
+        #                                    else 0))
+            
+        new_edge.flow = (self.flows[index_number] * self.gen_profile[edge_number]) + self.existing_flows
+        
         return
     
     def build_edges(self):
@@ -82,28 +84,58 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         return
     
     def _update_flows(self):
-        # NEW FUNCTION: Allows powerflow update for multi-year modeling for RE assets
-        index_number = 0
+        # NEW FUNCTION: Allows power flow update for multi-year modeling for RE assets
+        index_number = 0 # to track when year changes
         edge_counter = 0
         for edge in self.edges:
             if edge_counter >= self.year_change_indices[index_number]:
                 if index_number < self.num_years-1:
                     if edge_counter == self.year_change_indices[index_number+1]:
                         index_number += 1
-                edge.flow = self.flows[index_number] * self.gen_profile[edge_counter]
+                
+                self.existing_flows = self.final_capacity[index_number] * self.gen_profile[edge_counter]
+                # self.existing_flows = cp.CallbackParam(callback=lambda:
+                #                                   self.final_capacity[index_number].value * self.gen_profile[edge_counter].value)
+                edge.flow = self.flows[index_number] * self.gen_profile[edge_counter] + self.existing_flows
                 edge_counter += 1
         return
     
+    def _update_capacities(self):
+        """Update existing capacities dynamically for multi-year optimization."""
+    
+        historic_capacities = self._get_cumulative_capacities_array().tolist()  # Ensure list for handling CVXPY variables
+        
+        # Create an empty list to hold expressions
+        final_capacity_expressions = []
+        
+        # Initialize cumulative capacity with historical values
+        cumulative_capacity = historic_capacities.copy()
+    
+        for year in range(self.num_years):
+            if year == 0:
+                # First year: Capacity starts with existing values
+                final_capacity_expressions.append(cumulative_capacity[year])
+            else:
+                # Subsequent years: Add new installed capacity dynamically
+                new_installed = self.flows[year - 1]  # CVXPY variable
+                
+                # Ensure cumulative capacity updates dynamically as an expression
+                cumulative_capacity[year] = cumulative_capacity[year - 1] + new_installed
+                final_capacity_expressions.append(cumulative_capacity[year])
+    
+        # Convert to a CVXPY expression array
+        self.final_capacity = cp.vstack(final_capacity_expressions)  # Ensures it's a dynamic expression
+    
     def _update_sizing_constant(self):
-        N = np.ceil(self.network.system_parameters_df.loc["project_life", "value"]/self.parameters_df["lifespan"])
-        r = (1 + self.network.system_parameters_df.loc["discount_rate", "value"])**(-self.parameters_df["lifespan"]/8760)
-        NPV_factor = (1-r**N)/(1-r)
+        # N = np.ceil(self.network.system_parameters_df.loc["project_life", "value"]/self.parameters_df["lifespan"])
+        # r = (1 + self.network.system_parameters_df.loc["discount_rate", "value"])**(-self.parameters_df["lifespan"]/8760)
+        # NPV_factor = (1-r**N)/(1-r)
         
         # EDITED: Update costs with NPV Factor in the cost projections list. 
         # TO-DO: Needs exception for single-year modeling to use one value alone
-        # TO-DO: Needs NPV factor update per year as it advances.
-        for counter in range(self.num_years):
-            self.cost_fun_params["sizing_constant"].value[counter] = self.cost_projections[counter] * NPV_factor
+        # TO-DO: Needs NPV factor update per year as it advances, unless my cost projections already are in NPV
+        # for counter in range(self.num_years):
+        self.cost_fun_params["sizing_constant"] = self.cost_projections
 
         return
     
@@ -121,7 +153,11 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         # Update costs and RE profile
         self._update_sizing_constant()
         self._load_RE_profile()
+        # Build and update values for existing capacities 
         self._build_existing_capacities_matrix()
+        # self._add_optimized_capacities_to_matrix()
+        self._get_cumulative_capacities_array()
+        self._update_capacities()
         if self.num_years > 1:
             self._update_flows()
         return
@@ -129,7 +165,6 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
     def update(self, asset_type):
         self._load_parameters_df(asset_type)
         self._load_historic_capacity_params()
-        self._build_existing_capacities_matrix()
         self._update_parameters()
         return
     
@@ -158,7 +193,6 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         offset = set_size * set_number
         new_profile = np.zeros(int(n_sets * set_size))
         # NEW ADDITION: Initialize indices and variables to Build multi-year profiles
-        self.year_indexes = [0] # Initialize a list with first element 0 to indicate first year
         hour_counter = 1
         missing_val = 0
         # --
@@ -180,13 +214,10 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         '''NEW FUNCTION
         Builds the matrix with installed capacities each year based on historic
         total installed capacities'''
-        
-        # print("Checking if historic_capacity_df is loaded...")
         if self.historic_capacity_df is None:
             raise ValueError("Error: historic_capacity_df is None. It must be loaded before building the capacities matrix.")
     
         self.historic_capacity_df = self.historic_capacity_df[['year', 'wind_installed_capacity_GW']].dropna()
-        
         # Calculate annual installed capacity
         self.historic_capacity_df['annual_installed_capacity'] = self.historic_capacity_df['wind_installed_capacity_GW'].diff().fillna(0)
         
@@ -197,8 +228,6 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
     
         self.existing_capacity_df = pd.DataFrame({'Year': range(start_year, end_year + 1)})
     
-        # print("existing_capacity_df initialized:", self.existing_capacity_df.head())  # Debugging check
-    
         # Ensure self.existing_capacity_df is not accidentally None
         if self.existing_capacity_df is None or self.existing_capacity_df.empty:
             raise ValueError("Error: self.existing_capacity_df was not created properly.")
@@ -206,15 +235,16 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         for idx, row in self.historic_capacity_df.iterrows():
             year = int(row['year'])
             annual_capacity = float(row['annual_installed_capacity'])
-            # print(f"Calling _add_new_capacities for year {year}, capacity {annual_capacity}...") # Debugging print statement
             self._add_new_capacities(year, annual_capacity)
+
     
-        # print("Final existing_capacity_df:", self.existing_capacity_df.head())  # Debugging check
 
         
     def _add_new_capacities(self, current_year, annual_capacity):
         """NEW FUNCTION
-        Add a new year's data to the capacity matrix, staggering of years"""
+        Calculates the annual installed capacity from historical data of total
+        installed capacites to add that year to matrix with asset lifetime
+        """
         # Add the new column if it doesn't exist
         if str(current_year) not in self.existing_capacity_df.columns:
             self.existing_capacity_df[str(current_year)] = pd.Series(0, index=self.existing_capacity_df.index, dtype="float64") # Initialize the column with zeros
@@ -228,21 +258,25 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
 
     
     def _add_optimized_capacities_to_matrix(self):
+        '''NEW FUNCTION
+        Adds the optimal capacities from problem to the matrix
+        '''
         # Iterate through control horizon
         for year in range(self.num_years):
             # Get start year for scenario
             start_year = int(self.network.system_parameters_df.loc["scenario_start", "value"])
             # Add column for the newly installed capacity being optimised 
             self.existing_capacity_df = self._add_new_capacities(start_year, self.flows[year])
+        return self.existing_capacity_df 
 
     def _get_cumulative_capacities_array(self):
         '''
         NEW FUNCTION
         Generates the array for the cumulative installed capacities for the years
-        to be modeled
+        in the control horizon
         '''
         start_year = int(self.network.system_parameters_df.loc["scenario_start", "value"])
-        end_year = start_year + int(self.network.system_parameters_df.loc["project_life", "value"] / 8760)
+        end_year = start_year + int(self.network.system_parameters_df.loc["control_horizon", "value"] / 8760)
     
         # Filter rows within the desired year range
         filtered_df = self.existing_capacity_df[(self.existing_capacity_df['Year'] >= start_year) & 
@@ -252,14 +286,27 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         cumulative_capacities = filtered_df.iloc[:, 1:].sum(axis=1).to_numpy()
 
         return cumulative_capacities
-
         
+    def _get_min_max_capacities(self):
+        
+        return
     
+
     def get_plot_data(self):
-        # EDITED: getting complete power flows for plotting multi-year
-        for edge_counter in range(self.number_of_edges):
-            self.power_flows += [self.edges[edge_counter].flow.value]
-        return self.power_flows
+        '''
+        Gets total power flow data for each timestep, including from existing and
+        newly built capacities
+
+        Returns
+        -------
+        total_flows : list
+            List of flows from this asset.
+
+        '''
+        total_flows = []
+        for edge in self.edges:
+            total_flows.append(edge.flow[0].value)
+        return total_flows 
     
     def size(self):
         return self.flows.value

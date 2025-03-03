@@ -26,7 +26,7 @@ class Asset_STEVFNs:
         self.cost_fun_params = dict()
         self.conversion_fun_params = dict()
         return
-    
+     
     def build_cost(self):
         self.cost = self.cost_fun(self.flows, self.cost_fun_params)
         return
