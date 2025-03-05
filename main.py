@@ -54,7 +54,6 @@ total_df_1 = pd.DataFrame()
 for counter1 in range(len(scenario_folders_list)):
 # for counter1 in range(1):
     # Read Input Files ###
-    print(counter1)
     scenario_folder = scenario_folders_list[-1-counter1]
     asset_parameters_filename = os.path.join(scenario_folder, "Asset_Parameters.csv")
     location_parameters_filename = os.path.join(scenario_folder, "Location_Parameters.csv")
@@ -98,7 +97,7 @@ for counter1 in range(len(scenario_folders_list)):
     print("Total emissions = ", my_network.assets[0].asset_size(), "MtCO2e")
     # DPhil_Plotting.plot_all(my_network)
     # DPhil_Plotting.plot_asset_sizes(my_network)
-    DPhil_Plotting.plot_asset_costs(my_network)
+    # DPhil_Plotting.plot_asset_costs(my_network)
     
         
 
