@@ -21,10 +21,11 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
     target_node_type = "EL"
     
     source_node_type_2 = "NULL" # For Edge 2, to constrain maximum capacity
-    target_node_type_2 = "RE_WIND_Existing" # For Edge 2, to constrain maximum capacity
+    target_node_type_2 = "RE_WIND" # For Edge 2, to constrain maximum capacity
     
-    source_node_type_3 = "RE_WIND_Existing" # For Edge 3, to constrain minimum capacity
+    source_node_type_3 = "RE_WIND" # For Edge 3, to constrain minimum capacity
     target_node_type_3 = "NULL" # For Edge 3, to constrain minimum capacity
+
     period = 1
     transport_time = 0
     target_node_time_2 = 0 # For Edge 2, to constrain maximum capacity
@@ -43,6 +44,7 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
     def conversion_fun_3(flows, params):
         '''Conversion function to limit to minimum capacity vector'''
         return flows - params["minimum_size"]
+
         
     def __init__(self):
         super().__init__()
@@ -64,9 +66,10 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         # Add node locations for edge 2
         self.source_node_location_2 = "NULL"
         self.target_node_location_2 = asset_structure["Location_1"]
-        # Add node locations for edge 3
+        # Add node locations for edge 3, opposite direction
         self.source_node_location_3 = asset_structure["Location_1"]
         self.target_node_location_3 = "NULL"
+        
         self.target_node_times = np.arange(asset_structure["Start_Time"], 
                                            asset_structure["End_Time"], 
                                            self.period)
@@ -121,13 +124,13 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
     
     def build_edge_3(self):
         ''' Build a third edge to constrain maximum capacity'''
-        source_node_type = "NULL"
+        source_node_type = "RE_WIND"
         source_node_location = self.source_node_location_3
         source_node_time = 0
         target_node_type = self.target_node_type_3
         target_node_location = self.target_node_location_3
         target_node_time = self.target_node_time_3
-       
+        
         new_edge = Edge_STEVFNs()
         self.edges += [new_edge]
         if source_node_type != "NULL":
@@ -146,7 +149,7 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         for counter1 in range(self.number_of_edges):
             self.build_edge(counter1)
         self.build_edge_2()
-        self.build_edge_3()
+        # self.build_edge_3()
         return
     
     def _update_flows(self):
@@ -190,8 +193,8 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         # Convert to a CVXPY expression array
         self.final_capacity = cp.hstack(final_capacity_expressions)  # Concatenates a series of expressions
     
-    def process_csv_values(self, values):
-        """Converts a comma-separated string to a NumPy array of floats or returns
+    def process_csv_values(self,values):
+        """Method converts a comma-separated string to a NumPy array of floats or returns
         the original numeric values in an array."""
         if isinstance(values, str):
             return np.array([float(x) for x in values.split(",")], dtype=float)
@@ -426,11 +429,11 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         return total_flows 
     
     def size(self):
-        # Returns size of asset for Exsiting RE, which is a vector #
+        # Returns size of asset for Existing RE, which is a vector #
         return self.flows.value
     
     def asset_size(self):
-        # Returns size of asset for Exsiting RE, which is a vector #
+        # Returns size of asset for Existing RE, which is a vector #
         return self.flows.value
     
     def get_asset_sizes(self):
