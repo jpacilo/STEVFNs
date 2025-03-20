@@ -31,6 +31,7 @@ class CO2_Budget_Asset(Asset_STEVFNs):
         super().__init__()
         self.conversion_fun_params = {"maximum_budget": cp.Parameter(nonneg=True)}
         return
+        
     
     def define_structure(self, asset_structure):
         self.source_node_location = 0
@@ -38,29 +39,28 @@ class CO2_Budget_Asset(Asset_STEVFNs):
         self.target_node_location = 0
         self.number_of_edges = 1
         self.target_node_times = np.array([self.target_node_time])
-        #ADDED
-        self.num_years = int(self.network.system_parameters_df.loc["control_horizon", "value"] / 8760)
-        self.conversion_fun_params = {"maximum_budget": cp.Parameter(shape=(self.num_years,), nonneg=True)}
-        #--
         self.flows = cp.Constant(np.zeros(self.number_of_edges))
         return
     
     def process_csv_values(self,values):
         """Method converts a comma-separated string to a NumPy array of floats or returns
-        the original numeric values in an array."""
+        the original numeric values in an array.
+        For any single-year modeling, all asset types in column must be float to be read
+        as float. If one asset type is string, all will be read as string
+        """
         if isinstance(values, str):
             return np.array([float(x) for x in values.split(",")], dtype=float)
-        return np.array(values, dtype=float)  # Ensure it's always a NumPy array
+        elif isinstance(values, float):
+            return values
     
     #Added function for param update
     def _update_parameters(self):
-        """Updates model parameters efficiently by processing cost projections, max capacities, and min capacities."""
+        """Updates asset conversion parameters """
     
         # Update conversion function parameters
         for parameter_name, parameter in self.conversion_fun_params.items():
             parameter.value = self.process_csv_values(self.parameters_df[parameter_name])
         return
-            
     
     def get_plot_data(self):
         return self.flows.value

@@ -14,15 +14,15 @@ from ...Network import Edge_STEVFNs
 
 
 
-class PP_CO2_Asset(Asset_STEVFNs):
+class PP_CO2_MY_Asset(Asset_STEVFNs):
     """Class of Conventional Generators"""
-    asset_name = "PP_CO2"
+    asset_name = "PP_CO2_MY"
     source_node_type = "NULL"
     target_node_type = "EL"
     target_node_type_2 = "CO2_Budget"
     target_node_location_2 = 0
     target_node_time_2 = 0
-    target_node_type_3 = "PP_CO2" # For maximum constraint of asset size
+    target_node_type_3 = "PP_CO2_MY" # For maximum constraint of asset size
     target_node_location_3 = 0
     target_node_time_3 = 0
     period = 1
