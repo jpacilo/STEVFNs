@@ -18,14 +18,9 @@ class PP_CO2_Asset(Asset_STEVFNs):
     asset_name = "PP_CO2"
     source_node_type = "NULL"
     target_node_type = "EL"
-    
     target_node_type_2 = "CO2_Budget"
     target_node_location_2 = 0
     target_node_time_2 = 0
-    
-    target_node_type_3 = "PP_CO2"
-    target_node_location_3 = 0
-    target_node_time_3 = 0
     period = 1
     transport_time = 0
     
@@ -42,18 +37,12 @@ class PP_CO2_Asset(Asset_STEVFNs):
         CO2_emissions_factor = params["CO2_emissions_factor"]
         return -CO2_emissions_factor * flows
     
-    @staticmethod
-    def conversion_fun_3(flows, params):
-        maximum_size = params["maximum_size"]
-        return maximum_size - flows
-    
     def __init__(self):
         super().__init__()
         self.cost_fun_params = {"sizing_constant": cp.Parameter(nonneg=True),
                           "usage_constant_1": cp.Parameter(nonneg=True),
                           "usage_constant_2": cp.Parameter(nonneg=True)}
         self.conversion_fun_params_2 = {"CO2_emissions_factor": cp.Parameter(nonneg=True)}
-        self.conversion_fun_params_3 = {"maximum_size": cp.Parameter(nonneg=True)}
         return
     
     def define_structure(self, asset_structure):
@@ -74,11 +63,9 @@ class PP_CO2_Asset(Asset_STEVFNs):
         super().build_edges()
         for counter1 in range(self.number_of_edges):
             self.build_edge_2(counter1)
-        self.build_edge_3()
         return
     
     def build_edge_2(self, edge_number):
-        '''Build edge to calculate emissions from PP'''
         source_node_type = self.source_node_type
         source_node_location = self.source_node_location
         source_node_time = self.source_node_times[edge_number]
@@ -97,28 +84,6 @@ class PP_CO2_Asset(Asset_STEVFNs):
         new_edge.flow = self.flows[edge_number]
         new_edge.conversion_fun = self.conversion_fun_2
         new_edge.conversion_fun_params = self.conversion_fun_params_2
-        return
-    
-    def build_edge_3(self):
-        ''' Build edge to constrain maximum capacity'''
-        source_node_type = "NULL"
-        source_node_location = self.source_node_location
-        source_node_time = 0
-        target_node_type = self.target_node_type_3
-        target_node_location = self.target_node_location_3
-        target_node_time = self.target_node_time_3
-       
-        new_edge = Edge_STEVFNs()
-        self.edges += [new_edge]
-        if source_node_type != "NULL":
-            new_edge.attach_source_node(self.network.extract_node(
-                source_node_location, source_node_type, source_node_time))
-        if target_node_type != "NULL":
-            new_edge.attach_target_node(self.network.extract_node(
-                target_node_location, target_node_type, target_node_time))
-        new_edge.flow = cp.max(self.flows) # Power plant size
-        new_edge.conversion_fun = self.conversion_fun_3
-        new_edge.conversion_fun_params = self.conversion_fun_params_3
         return
     
     def _update_sizing_constant(self):
@@ -150,8 +115,6 @@ class PP_CO2_Asset(Asset_STEVFNs):
         super()._update_parameters()
         for parameter_name, parameter in self.conversion_fun_params_2.items():
             parameter.value = self.parameters_df[parameter_name]
-        for parameter_name, parameter in self.conversion_fun_params_3.items():
-            parameter.value = self.parameters_df[parameter_name]
         #Update cost parameters based on NPV#
         self._update_sizing_constant()
         self._update_usage_constants()
@@ -163,4 +126,3 @@ class PP_CO2_Asset(Asset_STEVFNs):
         asset_size = self.size()
         asset_identity = self.asset_name + r"_location_" + str(self.node_location)
         return {asset_identity: asset_size}
-

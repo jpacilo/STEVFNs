@@ -1,6 +1,6 @@
 Type,sizing_constant,sizing_constant_unit,usage_constant_1,usage_constant_1_unit,usage_constant_2,usage_constant_2_unit,lifespan,lifespan_units,CO2_emissions_factor,CO2_emissions_factor_unit,location_name,maximum_size,minimum_size
-0,1.2,G$/GWp,0.0000751,G$/GWh,0,G$/(GWh^2),219000,h,0.0004057,MtCO2e/GWh,SG,50,1
-1,1.04,G$/GWp,5.38E-05,G$/GWh,0,G$/(GWh^2),219000,h,0.000651,MtCO2e/GWh,ID,5,3
+0,0.1,G$/GWp,7.51E-08,G$/GWh,0,G$/(GWh^2),219000,h,0.0004057,MtCO2e/GWh,SG,50,1
+1,1.04,G$/GWp,5.38E-05,G$/GWh,0,G$/(GWh^2),219000,h,0.000651,MtCO2e/GWh,ID,51,3
 2,1.04,G$/GWp,5.38E-05,G$/GWh,0,G$/(GWh^2),219000,h,0.0007251,MtCO2e/GWh,MY,,
 3,1.04,G$/GWp,5.38E-05,G$/GWh,0,G$/(GWh^2),219000,h,0.000753,MtCO2e/GWh,BN,,
 4,1.04,G$/GWp,5.38E-05,G$/GWh,0,G$/(GWh^2),219000,h,0.000516,MtCO2e/GWh,KH,,
