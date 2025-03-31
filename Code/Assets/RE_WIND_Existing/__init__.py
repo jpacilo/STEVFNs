@@ -41,7 +41,7 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         return params["maximum_size"] - flows
     
     def build_cost(self):
-        '''Re-define build_cost for this asset to get amortised and discounted cost'''
+        '''Re-define build_cost method for this asset to get amortised and discounted cost'''
         self.cost = self._get_amortised_discounted_cost()
         return
 
@@ -55,7 +55,7 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         # shape defined in structure
         self.cost_fun_params = {"sizing_constant": cp.Parameter(nonneg=True)}
         self.conversion_fun_params_2 = {"maximum_size": cp.Parameter(nonneg=True)}
-        # self.conversion_fun_params_3 = {"minimum_size": cp.Parameter(nonneg=True)}
+
         return
     
     def define_structure(self, asset_structure):
@@ -65,9 +65,6 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         # Add node locations for edge 2
         self.source_node_location_2 = "NULL"
         self.target_node_location_2 = asset_structure["Location_1"]
-        # Add node locations for edge 3
-        self.source_node_location_3 = "NULL"
-        self.target_node_location_3 = asset_structure["Location_1"]
         
         self.target_node_times = np.arange(asset_structure["Start_Time"], 
                                            asset_structure["End_Time"], 
@@ -85,8 +82,6 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         self.cost_fun_params = {"sizing_constant": cp.Parameter(shape=(self.num_years,),
                                                                 nonneg=True)}
         self.conversion_fun_params_2 = {"maximum_size": cp.Parameter(shape=(self.num_years,),
-                                                                nonneg=True)}
-        self.conversion_fun_params_3 = {"minimum_size": cp.Parameter(shape=(self.num_years,),
                                                                 nonneg=True)}
         return
     
@@ -129,14 +124,13 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         for counter1 in range(self.number_of_edges):
             self.build_edge(counter1)
         self.build_edge_2()
-        # self.build_edge_3()
         return
     
     def _update_flows(self):
         '''NEW FUNCTION: Allows power flow update for multi-year modeling for RE assets'''
         index_number = 0 # indicates the year for each edge
         edge_counter = 0
-        # Loop through all edges from build_edge, not edge_2 or edge_3
+        # Loop through all edges from build_edge, not edge_2
         for edge in self.edges[:self.number_of_edges]:
             if edge_counter >= self.year_change_indices[index_number]:
                 if index_number < self.num_years-1:
@@ -159,7 +153,9 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         
         # Initialize the cumulative capacity with the historic values
         cumulative_capacity = historic_capacities.copy()
-        
+        # Get the minimum capacity to install parameter
+        min_capacities = self.process_csv_values(self.parameters_df["minimum_size"])
+
         for year in range(self.num_years):
             if year == 0:
                 # For the first year, start with existing capacities
@@ -167,6 +163,7 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
             else:
                 # For subsequent years, we add the new installed capacity dynamically
                 new_installed = self.flows[year - 1]  # CVXPY variable for the current year's flow
+                min_to_install = min_capacities[year]
                 
                 # Determine the range within which we can update the cumulative capacity
                 start_idx = year
@@ -174,7 +171,7 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
                 
                 # Update the cumulative capacity for the current year and the subsequent years up to asset_lifetime
                 for i in range(start_idx, end_idx):
-                    cumulative_capacity[i] += new_installed
+                    cumulative_capacity[i] += new_installed + min_to_install
                 
                 # Append the updated capacity for the current year
                 final_capacity_expressions.append(cumulative_capacity[year])
@@ -194,11 +191,10 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         '''
         Calculates discounted and amortised costs matrix for installed capacity
         '''
-
         # cost_array = self.cost_fun_params["sizing_constant"].value
-        cost_array = np.array([0.8, 0.7, 0.6, 0.5, 0.4])
+        cost_array = np.array([0.8, 0.7, 0.6, 0.5, 0.4]) # Hard-coded for testing
         num_years = self.num_years
-        asset_lifetime = 20
+        asset_lifetime = 20 # hard-coded for testing
         interest_rate = float(self.network.system_parameters_df.loc["interest_rate", "value"])
         discount_rate = float(self.network.system_parameters_df.loc["discount_rate", "value"])
         
