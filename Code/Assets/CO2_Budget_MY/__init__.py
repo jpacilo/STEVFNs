@@ -39,10 +39,10 @@ class CO2_Budget_MY_Asset(Asset_STEVFNs):
         self.source_node_location = 0
         self.source_node_times = np.array([self.source_node_time])
         self.target_node_location = 0
-        self.number_of_edges = self.num_years
-        self.target_node_times = np.arrange(0, self.number_of_edges)
-        self.flows = cp.Constant(np.zeros(self.number_of_edges))
-        self.conversion_fun_params = {"maximum_budget": cp.Parameter(shape=(self.number_of_edges),
+        self.number_of_edges = 1
+        self.target_node_times = np.arange(0, self.num_years)
+        self.flows = cp.Constant(np.zeros(self.num_years))
+        self.conversion_fun_params = {"maximum_budget": cp.Parameter(shape=(self.num_years),
                                                                      nonneg=True)}
         return
     
@@ -62,11 +62,22 @@ class CO2_Budget_MY_Asset(Asset_STEVFNs):
         new_edge.conversion_fun_params = self.conversion_fun_params
         return
     
+    def process_csv_values(self,values):
+        """Method converts a comma-separated string to a NumPy array of floats or returns
+        the original numeric values in an array."""
+        if isinstance(values, str):
+            return np.array([float(x) for x in values.split(",")], dtype=float)
+        return np.array(values, dtype=float)  # Ensure it's always a NumPy array
+        
+    
     def _update_parameters(self):
         """Updates model parameters by processing csv values for """
     
         # Update cost function parameters
         for parameter_name, parameter in self.cost_fun_params.items():
+            parameter.value = self.process_csv_values(self.parameters_df[parameter_name])
+            
+        for parameter_name, parameter in self.conversion_fun_params.items():
             parameter.value = self.process_csv_values(self.parameters_df[parameter_name])
     
     def get_plot_data(self):

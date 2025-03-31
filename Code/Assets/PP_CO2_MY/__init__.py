@@ -19,7 +19,7 @@ class PP_CO2_MY_Asset(Asset_STEVFNs):
     asset_name = "PP_CO2_MY"
     source_node_type = "NULL"
     target_node_type = "EL"
-    target_node_type_2 = "CO2_Budget"
+    target_node_type_2 = "CO2_Budget_MY"
     target_node_location_2 = 0
     target_node_time_2 = 0
     target_node_type_3 = "PP_CO2_MY" # For maximum constraint of asset size
@@ -87,8 +87,10 @@ class PP_CO2_MY_Asset(Asset_STEVFNs):
         self.cost_fun_params = {"sizing_constant": cp.Parameter(shape=(self.num_years,),
                                                                 nonneg=True),
                                 "usage_constant_1": cp.Parameter(shape=(self.num_years,),
-                                                                                        nonneg=True),}
-        #EDITED: matrix of flows defined flows as a 2D variable: (timesteps_per_year, num_years)
+                                                                 nonneg=True),}
+        self.conversion_fun_params_3 = {"maximum_size": cp.Parameter(shape=(self.num_years,),
+                                                                     nonneg=True)}
+        #EDITED: matrix of flows defined flows as a 2D variable: (num_years, timesteps_per_year)
         self.flows = cp.Variable(shape=(self.num_years, self.number_of_edges), nonneg = True)
         
         return
@@ -154,7 +156,7 @@ class PP_CO2_MY_Asset(Asset_STEVFNs):
         if target_node_type != "NULL":
             new_edge.attach_target_node(self.network.extract_node(
                 target_node_location, target_node_type, target_node_time))
-        new_edge.flow = cp.max(self.flows, axis=1) # Capacity of assets at all years
+        new_edge.flow = cp.max(self.flows, axis=1) # Capacity of assets at all years, length num_years
         new_edge.conversion_fun = self.conversion_fun_3
         new_edge.conversion_fun_params = self.conversion_fun_params_3
         return
@@ -198,19 +200,12 @@ class PP_CO2_MY_Asset(Asset_STEVFNs):
         # Ensure the array lengths match num_years
         if len(original_usage_constant_1) != self.num_years:
             raise ValueError("Mismatch between num_years and usage_constant_1 length")
-        
-        # if len(original_usage_constant_2) != self.num_years:
-        #     raise ValueError("Mismatch between num_years and usage_constant_2 length")
      
         # Apply NPV discounting: Keep the first value unchanged, discount the rest year-by-year
         adjusted_usage_constant_1 = original_usage_constant_1 / np.array([(1 + discount_rate) ** t for t in range(self.num_years)])
      
         # Apply simulation factor (accounting for time resolution, e.g., hourly)
         adjusted_usage_constant_1 *= simulation_factor
-        
-        # Apply NPV discounting and simulation factor to the second usage constant
-        # adjusted_usage_constant_2 = original_usage_constant_2 / np.array([(1 + discount_rate) ** t for t in range(self.num_years)])
-        # adjusted_usage_constant_2 *= simulation_factor
      
         # Store updated values in the cost function parameters
         self.cost_fun_params["usage_constant_1"].value = adjusted_usage_constant_1
@@ -233,7 +228,7 @@ class PP_CO2_MY_Asset(Asset_STEVFNs):
             parameter.value = self.parameters_df[parameter_name]
             
         for parameter_name, parameter in self.conversion_fun_params_3.items():
-            parameter.value = self.parameters_df[parameter_name]
+            parameter.value = self.process_csv_values(self.parameters_df[parameter_name])
     
         #Update cost parameters based on NPV#
         self._update_sizing_constant()

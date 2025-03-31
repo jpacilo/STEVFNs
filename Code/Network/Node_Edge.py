@@ -53,6 +53,7 @@ class Node:
             self.constraints = [self.net_output_flows <= 0]
         else:
             self.constraints = [self.net_output_flows == 0]
+         
         return
 
 class Edge:
