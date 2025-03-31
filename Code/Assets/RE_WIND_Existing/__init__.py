@@ -11,6 +11,7 @@ import os
 import numpy as np
 import pandas as pd
 import cvxpy as cp
+from amortization.amount import calculate_amortization_amount as amort
 from ..Base_Assets import Asset_STEVFNs
 from ...Network import Edge_STEVFNs
 
@@ -23,27 +24,26 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
     source_node_type_2 = "NULL" # For Edge 2, to constrain maximum capacity
     target_node_type_2 = "RE_WIND" # For Edge 2, to constrain maximum capacity
     
-    source_node_type_3 = "NULL" # For Edge 3, to constrain minimum capacity
-    target_node_type_3 = "RE_WIND" # For Edge 3, to constrain minimum capacity
+    # source_node_type_3 = "RE_WIND_Existing" # For Edge 3, to constrain minimum capacity
+    # target_node_type_3 = "EL" # For Edge 3, to constrain minimum capacity
 
     period = 1
     transport_time = 0
     target_node_time_2 = 0 # For Edge 2, to constrain maximum capacity
-    target_node_time_3 = 0 # For Edge 3, to constrain minimum capacity
     
-    @staticmethod
-    def cost_fun(flows, params):
-        return params["sizing_constant"] @ flows # element wise dot product
+    # @staticmethod
+    # def cost_fun(flows, params):
+    #     return params["sizing_constant"] @ flows # element wise dot product
     
     @staticmethod
     def conversion_fun_2(flows, params):
         '''Conversion function to limit to maximum capacity vector'''
         return params["maximum_size"] - flows
     
-    @staticmethod
-    def conversion_fun_3(flows, params):
-        '''Conversion function to limit to minimum capacity vector'''
-        return flows - params["minimum_size"]
+    def build_cost(self):
+        '''Re-define build_cost for this asset to get amortised and discounted cost'''
+        self.cost = self._get_amortised_discounted_cost()
+        return
 
     def __init__(self):
         super().__init__()
@@ -55,7 +55,7 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         # shape defined in structure
         self.cost_fun_params = {"sizing_constant": cp.Parameter(nonneg=True)}
         self.conversion_fun_params_2 = {"maximum_size": cp.Parameter(nonneg=True)}
-        self.conversion_fun_params_3 = {"minimum_size": cp.Parameter(nonneg=True)}
+        # self.conversion_fun_params_3 = {"minimum_size": cp.Parameter(nonneg=True)}
         return
     
     def define_structure(self, asset_structure):
@@ -73,11 +73,14 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
                                            asset_structure["End_Time"], 
                                            self.period)
         self.number_of_edges = len(self.target_node_times)
+        # self.asset_lifetime = int(self.parameters_df.loc["lifespan"] / 8760)
         # Define the number of years in the control horizon
         self.num_years = int(self.network.system_parameters_df.loc["control_horizon", "value"] / 8760)
         self.gen_profile = cp.Parameter(shape = (self.number_of_edges), nonneg=True)
         # EDITED: set size of RE asset as array of sizes per horizon modeled
         self.flows = cp.Variable(shape=(self.num_years,), nonneg=True) # New capacities to install per year
+        
+        
         self.final_capacity = np.zeros(shape=(self.num_years,)) # Initialize dynamic, auxilliary variable with zeros
         self.cost_fun_params = {"sizing_constant": cp.Parameter(shape=(self.num_years,),
                                                                 nonneg=True)}
@@ -119,28 +122,6 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         new_edge.flow = self.flows # capacities, CVXPY variable
         new_edge.conversion_fun = self.conversion_fun_2
         new_edge.conversion_fun_params = self.conversion_fun_params_2
-        return
-    
-    def build_edge_3(self):
-        ''' Build a third edge to constrain maximum capacity'''
-        source_node_type = "NULL"
-        source_node_location = self.source_node_location_3
-        source_node_time = 0
-        target_node_type = self.target_node_type_3
-        target_node_location = self.target_node_location_3
-        target_node_time = self.target_node_time_3
-        
-        new_edge = Edge_STEVFNs()
-        self.edges += [new_edge]
-        if source_node_type != "NULL":
-            new_edge.attach_source_node(self.network.extract_node(
-                source_node_location, source_node_type, source_node_time))
-        if target_node_type != "NULL":
-            new_edge.attach_target_node(self.network.extract_node(
-                target_node_location, target_node_type, target_node_time))
-        new_edge.flow = self.flows # capacities, CVXPY variable
-        new_edge.conversion_fun = self.conversion_fun_3
-        new_edge.conversion_fun_params = self.conversion_fun_params_3
         return
     
     def build_edges(self):
@@ -201,31 +182,6 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         # Convert to a CVXPY expression array
         self.final_capacity = cp.hstack(final_capacity_expressions)  # Concatenates a series of expressions
     
-    # def _update_capacities(self):
-    #     """Update existing capacities dynamically for multi-year optimization."""
-    
-    #     historic_capacities = self._get_cumulative_capacities_array().tolist()  # Ensure list for handling CVXPY variables
-        
-    #     # Create an empty list to hold expressions
-    #     final_capacity_expressions = []
-        
-    #     # Initialize cumulative capacity with historical values
-    #     cumulative_capacity = historic_capacities.copy()
-    
-    #     for year in range(self.num_years):
-    #         if year == 0:
-    #             # First year: Capacity starts with existing values
-    #             final_capacity_expressions.append(cumulative_capacity[year])
-    #         else:
-    #             # Subsequent years: Add new installed capacity dynamically
-    #             new_installed = self.flows[year - 1]  # CVXPY variable
-                
-    #             # Ensure cumulative capacity updates dynamically as an expression
-    #             cumulative_capacity[year:year + self.asset_lifetime] = cumulative_capacity[year:year + self.asset_lifetime] + new_installed
-    #             final_capacity_expressions.append(cumulative_capacity[year])
-    #     # Convert to a CVXPY expression array
-    #     self.final_capacity = cp.hstack(final_capacity_expressions)  # Concatenates a series of expressions
-    
     def process_csv_values(self,values):
         """Method converts a comma-separated string to a NumPy array of floats or returns
         the original numeric values in an array."""
@@ -233,26 +189,36 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
             return np.array([float(x) for x in values.split(",")], dtype=float)
         return np.array(values, dtype=float)  # Ensure it's always a NumPy array
 
+        
+    def _get_amortised_discounted_cost(self):
+        '''
+        Calculates discounted and amortised costs matrix for installed capacity
+        '''
 
-    def _update_sizing_constant(self):
-        """Updates the sizing constant with NPV discounting applied year-by-year."""
-        num_years = self.num_years  # Number of years being modeled
-    
-        # Convert discount rate to float
+        # cost_array = self.cost_fun_params["sizing_constant"].value
+        cost_array = np.array([0.8, 0.7, 0.6, 0.5, 0.4])
+        num_years = self.num_years
+        asset_lifetime = 20
+        interest_rate = float(self.network.system_parameters_df.loc["interest_rate", "value"])
         discount_rate = float(self.network.system_parameters_df.loc["discount_rate", "value"])
-    
-        # Extract and process the original sizing_constant from the parameters DataFrame
-        original_sizing_constant = self.process_csv_values(self.parameters_df["sizing_constant"])
-    
-        # Ensure the array length matches num_years
-        if len(original_sizing_constant) != num_years:
-            raise ValueError("Mismatch between num_years and sizing_constant length")
-    
-        # Apply NPV discounting: Keep the first value unchanged, discount the rest
-        adjusted_sizing_constant = original_sizing_constant / np.array([(1 + discount_rate) ** t for t in range(num_years)])
-    
-        # Store updated values
-        self.cost_fun_params["sizing_constant"].value = adjusted_sizing_constant
+        
+        # Calculate amortised cost array
+        amortised_cost = np.array([amort(c, interest_rate, asset_lifetime) for c in cost_array])
+        # Create index matrices
+        i, j = np.meshgrid(np.arange(num_years), np.arange(num_years), indexing='ij')
+        
+        # Define discount factor (only upper triangular part matters)
+        discount_factor = (1 + discount_rate) ** (j - i)
+        valid_mask = j >= i  # Upper triangular mask
+        
+        # Payments matrix (CVXPY constraints ensure element-wise operations are valid)
+        self.payments_M = cp.multiply(self.flows[i], amortised_cost[i]) / discount_factor
+        
+        # Apply mask to ignore lower triangular part
+        self.payments_M = cp.multiply(self.payments_M, valid_mask)
+        
+        return cp.sum(self.payments_M)
+        
     
     
     def _update_parameters(self):
@@ -267,11 +233,10 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
             for parameter_name, parameter in param_dict.items():
                 parameter.value = self.process_csv_values(self.parameters_df[parameter_name])
     
-        # Update costs and RE profile
-        self._update_sizing_constant()
         self._load_RE_profile()
         # Build and update values for existing capacities
         self._build_existing_capacities_matrix()
+        self._get_amortised_discounted_cost()
         self._get_cumulative_capacities_array()
         self._update_capacities()
         self._update_flows()
@@ -430,49 +395,6 @@ class RE_WIND_Existing_Asset(Asset_STEVFNs):
         cumulative_capacities = filtered_df.iloc[:, 1:].sum(axis=1).to_numpy()
 
         return cumulative_capacities
-
-    # def _calculate_min_max_capacities(self):
-    #     """
-    #     Computes dynamic min and max capacity constraints for each year.
-    
-    #     Returns:
-    #         (list, list): Tuple of min and max capacity limits per year.
-    #     """
-    #     # Initialize variables
-    #     start_year = int(self.network.system_parameters_df.loc["scenario_start", "value"])
-    #     end_year = start_year + 30
-    #     dt = 1
-    #     years = np.arange(start_year, end_year + dt, dt)
-    #     num_years = len(years)
-    #     k_goal = 150 # Define capacity goal from other model
-    #     r_max = 10
-    #     # k_goal = self.parameters_df["goal_capacity"]
-    #     # r_max = self.parameters_df["max_rate_adoption"]
-    #     k_existing_array = self.final_capacity.value.flatten()
-    #     k_min_list = []
-    #     k_max_list = []
-    
-    #     for n in range(num_years):
-    #         if n > 0:  # Update existing capacity with previously installed self.flow
-    #             k_existing_array.append(k_existing_array[n - 1] + k_min_list[n - 1])
-    
-    #         years_left = (end_year - start_year) - (n * dt)
-    
-    #         # Compute max and min constraints
-    #         k_max = min(
-    #             k_goal - k_existing_array[n],
-    #             (r_max * dt)
-    #         )
-    
-    #         k_min = max((k_goal - (r_max * years_left)), k_existing_array[n]) - k_existing_array[n]
-    
-    #         k_max_list.append(k_max)
-    #         k_min_list.append(k_min)
-            
-    #     # To relate to params in the cost function
-    #     self.cost_fun_params["min_capacity"] = k_min_list
-        
-    #     return k_min_list, k_max_list
     
 
     def get_plot_data(self):
