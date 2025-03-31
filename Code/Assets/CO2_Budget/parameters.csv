@@ -1,5 +1,5 @@
 Type,maximum_budget,maximum_budget_unit,case_study
-0,1.14E+03,MtCO2e,SG_AUT
+0,7.97E+02,MtCO2e,SG_AUT
 1,1124.317014,MtCO2e,SG_AUT
 2,1112.960277,MtCO2e,SG_AUT
 3,1101.603539,MtCO2e,SG_AUT
@@ -635,7 +635,7 @@ Type,maximum_budget,maximum_budget_unit,case_study
 633,101.085506,MtCO2e,BN_AUT
 634,134.7806747,MtCO2e,BN_AUT
 635,1000000,MtCO2e,test_RE_WIND
-636,100.5,MtCO2e,test_RE_WIND
+636,6200,MtCO2e,test_RE_WIND
 637,95,MtCO2e,test_RE_WIND
 638,93,MtCO2e,test_RE_WIND
 639,90,MtCO2e,test_RE_WIND
