@@ -21,12 +21,13 @@ from Code.Results import GMPA_Results
 #### Define Input Files ####
 # case_study_name = "BAU_No_Action"
 # case_study_name = "Autarky_CL"
-case_study_name = "BN-TH-PH-MY_Collab"
+# case_study_name = "BN-TH-PH-MY_Collab"
 # case_study_name = "KH-BN_Collab"
 # case_study_name = "TH-PH-MY_Autarky"
 # case_study_name = "TH-PH-MY_Collab"
 # case_study_name = "SG-KH-VN-ID_Collab"
 # case_study_name = "VN-MY-LA-SG_Collab"
+case_study_name = 'VN-TH-ID-KH_TEST_WIND_Collab'
 
 base_folder = os.path.dirname(__file__)
 data_folder = os.path.join(base_folder, "Data")
@@ -92,7 +93,7 @@ for counter1 in range(len(scenario_folders_list)):
     # my_network.problem.solve(solver = cp.ECOS, warm_start=True, max_iters=100000000, verbose=True,
                               # ignore_dpp=True,# Uncomment to disable DPP. DPP will make the first scenario run slower, but subsequent scenarios will run significantly faster.
                               # )
-    my_network.problem.solve(solver = cp.CLARABEL, max_iter=10000)
+    my_network.problem.solve(solver = cp.CLARABEL, max_iter=10000, ignore_dpp=True)
     # my_network.problem.solve(solver = cp.SCS, warm_start=True, max_iters=100000, ignore_dpp=True, verbose=False)
     # my_network.problem.solve(solver = cp.MOSEK)
     end_time = time.time()
@@ -114,20 +115,20 @@ for counter1 in range(len(scenario_folders_list)):
     ### Export cost results to pandas dataframe per scenario and concat all scenarios
     t_df = GMPA_Results.export_total_data(my_network, location_parameters_df, asset_parameters_df)
     t1_df = GMPA_Results.export_total_data_not_rounded(my_network, location_parameters_df, asset_parameters_df)
-    capacities_df = GMPA_Results.export_total_data_capacities(my_network, location_parameters_df, asset_parameters_df)
+    # capacities_df = GMPA_Results.export_total_data_capacities(my_network, location_parameters_df, asset_parameters_df)
     if counter1 == 0:
         total_df = t_df
         total_df_1 = t1_df
-        total_cap_df = capacities_df
+        # total_cap_df = capacities_df
     else:
         total_df = pd.concat([total_df, t_df], ignore_index=True)
         total_df_1 = pd.concat([total_df_1, t1_df], ignore_index=True)
-        total_cap_df = pd.concat([total_cap_df, capacities_df], ignore_index=True)
+        # total_cap_df = pd.concat([total_cap_df, capacities_df], ignore_index=True)
         
 # #### Save Result
 total_df.to_csv(results_filename, index=False, header=True)
 total_df_1.to_csv(unrounded_results_filename, index=False, header=True)
-total_cap_df.to_csv(capacities_filename, index=False, header=True)
+# total_cap_df.to_csv(capacities_filename, index=False, header=True)
     
         
 final_time = time.time()

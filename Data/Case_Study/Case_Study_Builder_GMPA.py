@@ -141,29 +141,29 @@ def update_scenarios_collab(base_case_study):
     system_filename_col = os.path.join(case_study_folder_col, base_scenario_name, "System_Parameters.csv")
     
     # Updates the _Autarky case study scenarios
-    base_asset_df = pd.read_csv(asset_filename_aut)
-    base_locs_df = pd.read_csv(location_filename_aut)
-    base_sys_df = pd.read_csv(system_filename_aut)
+    # base_asset_df = pd.read_csv(asset_filename_aut)
+    # base_locs_df = pd.read_csv(location_filename_aut)
+    # base_sys_df = pd.read_csv(system_filename_aut)
 
-    for counter1 in range(10):
-        scenario_name = str((np.arange(10)*10)[-counter1-1])
-        if not os.path.exists(os.path.join(case_study_folder_aut, scenario_name)):
-            os.makedirs(os.path.join(case_study_folder_aut, scenario_name))
+    # for counter1 in range(10):
+    #     scenario_name = str((np.arange(10)*10)[-counter1-1])
+    #     if not os.path.exists(os.path.join(case_study_folder_aut, scenario_name)):
+    #         os.makedirs(os.path.join(case_study_folder_aut, scenario_name))
         
-        new_asset_filename = os.path.join(case_study_folder_aut, scenario_name, "Asset_Parameters.csv")
-        new_asset_df = base_asset_df.copy()
-        asset_type_list = list(new_asset_df["Asset_Type"])
-        asset_type_list[0] = new_asset_df["Asset_Type"][0] + counter1 + 1
-        new_asset_df["Asset_Type"] = asset_type_list
-        new_asset_df.to_csv(new_asset_filename, index=False)
+    #     new_asset_filename = os.path.join(case_study_folder_aut, scenario_name, "Asset_Parameters.csv")
+    #     new_asset_df = base_asset_df.copy()
+    #     asset_type_list = list(new_asset_df["Asset_Type"])
+    #     asset_type_list[0] = new_asset_df["Asset_Type"][0] + counter1 + 1
+    #     new_asset_df["Asset_Type"] = asset_type_list
+    #     new_asset_df.to_csv(new_asset_filename, index=False)
         
-        new_locations_filename = os.path.join(case_study_folder_aut, scenario_name, "Location_Parameters.csv")
-        new_locs_df = base_locs_df.copy()
-        new_locs_df.to_csv(new_locations_filename, index=False)
+    #     new_locations_filename = os.path.join(case_study_folder_aut, scenario_name, "Location_Parameters.csv")
+    #     new_locs_df = base_locs_df.copy()
+    #     new_locs_df.to_csv(new_locations_filename, index=False)
         
-        new_sys_filename = os.path.join(case_study_folder_aut, scenario_name, "System_Parameters.csv")
-        new_sys_df = base_sys_df.copy()
-        new_sys_df.to_csv(new_sys_filename, index=False)
+    #     new_sys_filename = os.path.join(case_study_folder_aut, scenario_name, "System_Parameters.csv")
+    #     new_sys_df = base_sys_df.copy()
+    #     new_sys_df.to_csv(new_sys_filename, index=False)
 
 
     # Updates the _Collab case study scenarios
@@ -200,7 +200,7 @@ def update_scenarios_collab(base_case_study):
 # =============================================================================
 
 # single_country_case_study = "ZA"
-multiple_country_case_study = "BN-MY"  # Can be of all combinations e.g. XX-YY-ZZ or WW-XX-YY-ZZ
+multiple_country_case_study = "VN-TH-ID-KH_TEST_WIND"  # Can be of all combinations e.g. XX-YY-ZZ or WW-XX-YY-ZZ
 
 base_scenario_name = "BAU"
 update_scenarios_collab(multiple_country_case_study)
