@@ -80,7 +80,8 @@ def mitigation_curve(total_data_filename, plot_filename, case_study_name, countr
     ax.set_xlabel("Collaboration Emissions (MtCO2e)")
     ax.set_ylabel("Costs (Billion USD)")
     ax.set_xlim(left=0)
-    ax.legend(bbox_to_anchor=(0.5, -1.35), loc='lower center', borderaxespad=0, ncol=4)
+    ax.get_legend().remove()
+    # ax.legend(bbox_to_anchor=(0.5, -1.35), loc='lower center', borderaxespad=0, ncol=4)
     fig.savefig(plot_filename, dpi=300, bbox_inches="tight")
     return
     
@@ -241,13 +242,15 @@ def dpacc_subplots(total_data_filename, capacities_data_filename, plot_filename,
 # case_study_name = "VN-MY-LA-SG_Autarky"
 # case_study_name = "ID-KH-BN_Collab"
 # 
-case_study_name = "BN-TH-PH-MY_Collab"
+# case_study_name = "BN-TH-PH-MY_Collab"
 # case_study_name = "SG-KH-VN-ID_Collab"
 
 ###### Four Country Case Studies #########
 # case_study_name = "VN-MY-LA-SG_Collab"
 # case_study_name = "BR-CO-PE-CL_Collab"
 # 
+
+case_study_name = 'VN-TH-ID-KH_TEST_WIND_Collab'
 
 base_folder = os.path.dirname(__file__)
 data_folder = os.path.join(base_folder, "Data")
@@ -266,9 +269,9 @@ mitigation_curve(total_data_filename,
 # Plot subplots for costs and capacity installed
 subplotsplot_filename = os.path.join(case_study_folder, "d-pacc_subplots.png")
 
-dpacc_subplots(total_data_filename,
-            capacities_data_filename,
-            subplotsplot_filename,
-            case_study_name,
-            countries=["KE", "NG", "CO", "PE", "KR", "VN", "LA", "TH", "PH", "ID", "MY"])
+# dpacc_subplots(total_data_filename,
+#             capacities_data_filename,
+#             subplotsplot_filename,
+#             case_study_name,
+#             countries=["KE", "NG", "CO", "PE", "KR", "VN", "LA", "TH", "PH", "ID", "MY"])
 

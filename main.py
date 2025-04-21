@@ -100,7 +100,8 @@ for counter1 in range(len(scenario_folders_list)):
 
     
     ### Plot Results ############
-    print("Scenario: ", my_network.scenario_name)
+    print("Scenario: ", my_network.scenario_name,
+          "Total Cost:", my_network.problem.value, " Billion USD")
     print("Time taken to solve problem = ", end_time - start_time, "s")
     print(my_network.problem.solution.status)
     if my_network.problem.value == float("inf"):

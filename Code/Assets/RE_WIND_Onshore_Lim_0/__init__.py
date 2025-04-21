@@ -126,15 +126,15 @@ class RE_WIND_Onshore_Lim_0_Asset(Asset_STEVFNs):
         full_profile = np.loadtxt(profile_filename)
         set_size = self.parameters_df["set_size"]
         set_number = self.parameters_df["set_number"]
-        n_sets = int(np.ceil(self.number_of_edges/set_size))
-        gap = int(len(full_profile) / (n_sets * set_size)) * set_size
+        n_sets = np.int64(np.ceil(self.number_of_edges/set_size))
+        gap = np.int64(len(full_profile) / (n_sets * set_size)) * set_size
         offset = set_size * set_number
-        new_profile = np.zeros(int(n_sets * set_size))
+        new_profile = np.zeros(np.int64(n_sets * set_size))
         for counter1 in range(n_sets):
-            old_loc_0 = int(offset + gap*counter1)
-            old_loc_1 = int(old_loc_0 + set_size)
-            new_loc_0 = int(set_size * counter1)
-            new_loc_1 = int(new_loc_0 + set_size)
+            old_loc_0 = np.int64(offset + gap*counter1)
+            old_loc_1 = np.int64(old_loc_0 + set_size)
+            new_loc_0 = np.int64(set_size * counter1)
+            new_loc_1 = np.int64(new_loc_0 + set_size)
             new_profile[new_loc_0 : new_loc_1] = full_profile[old_loc_0 : old_loc_1]
         self.gen_profile.value = new_profile[:self.number_of_edges]
         return
