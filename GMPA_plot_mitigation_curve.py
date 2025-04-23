@@ -250,7 +250,7 @@ def dpacc_subplots(total_data_filename, capacities_data_filename, plot_filename,
 # case_study_name = "BR-CO-PE-CL_Collab"
 # 
 
-case_study_name = 'VN-TH-ID-KH_TEST_WIND_Collab'
+case_study_name = 'VN-TH-ID-KR_TEST_WIND_Collab'
 
 base_folder = os.path.dirname(__file__)
 data_folder = os.path.join(base_folder, "Data")
@@ -266,8 +266,8 @@ mitigation_curve(total_data_filename,
                   case_study_name,
                   countries=["KE", "NG", "CO", "PE", "KR", "VN", "LA", "TH", "PH", "ID", "MY"])
 
-# Plot subplots for costs and capacity installed
-subplotsplot_filename = os.path.join(case_study_folder, "d-pacc_subplots.png")
+# # Plot subplots for costs and capacity installed
+# subplotsplot_filename = os.path.join(case_study_folder, "d-pacc_subplots.png")
 
 # dpacc_subplots(total_data_filename,
 #             capacities_data_filename,

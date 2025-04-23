@@ -14,7 +14,6 @@ import cvxpy as cp
 
 
 from Code.Network.Network import Network_STEVFNs
-from Code.Plotting import DPhil_Plotting
 from Code.Results import GMPA_Results
 
 
@@ -27,7 +26,7 @@ from Code.Results import GMPA_Results
 # case_study_name = "TH-PH-MY_Collab"
 # case_study_name = "SG-KH-VN-ID_Collab"
 # case_study_name = "VN-MY-LA-SG_Collab"
-case_study_name = 'VN-TH-ID-KH_TEST_WIND_Collab'
+case_study_name = 'VN-TH-ID-KR_TEST_WIND_Collab'
 
 base_folder = os.path.dirname(__file__)
 data_folder = os.path.join(base_folder, "Data")
@@ -35,15 +34,16 @@ case_study_folder = os.path.join(data_folder, "Case_Study", case_study_name)
 scenario_folders_list = [x[0] for x in os.walk(case_study_folder)][1:]
 network_structure_filename = os.path.join(case_study_folder, "Network_Structure.csv")
 results_filename = os.path.join(case_study_folder, "total_data.csv")
-unrounded_results_filename = os.path.join(case_study_folder, "total_data_unrounded.csv")
+# unrounded_results_filename = os.path.join(case_study_folder, "total_data_unrounded.csv")
 capacities_filename = os.path.join(case_study_folder, "capacities_total_data.csv")
 
 
 ### Read Input Files ###
 
 network_structure_df = pd.read_csv(network_structure_filename)
+time_steps = network_structure_df['End_Time'][0]
 
-
+unrounded_results_filename = os.path.join(case_study_folder, f"total_data_unrounded_{time_steps}.csv")
 
 ### Build Network ###
 start_time0 = time.time()
@@ -130,7 +130,7 @@ for counter1 in range(len(scenario_folders_list)):
 total_df.to_csv(results_filename, index=False, header=True)
 total_df_1.to_csv(unrounded_results_filename, index=False, header=True)
 # total_cap_df.to_csv(capacities_filename, index=False, header=True)
-    
+
         
 final_time = time.time()
 print("Time to build network, run all scenarios, and export data", (final_time - start_time0)/60, "min")

@@ -250,15 +250,26 @@ def get_wind_inputs(countries, scenario):
                                                 'capex_2050'].values
             wind_off_capex_value = float(wind_off_capex_array[0]) / 1000 # convert units
             # Get max capacities for onshore and offshore wind
-            max_capacities_on_df.columns = max_capacities_on_df.iloc[0]
-            max_capacities_on_df = max_capacities_on_df[1:].reset_index(drop=True)
-            max_capacities_on_df['group'] = max_capacities_on_df['group'].astype(int)
-            wind_on_max_cap_value = float(max_capacities_on_df.loc[max_capacities_on_df['group'] == group, 'capacity'].iloc[0])
-    
-            max_capacities_off_df.columns = max_capacities_off_df.iloc[0]
-            max_capacities_off_df = max_capacities_off_df[1:].reset_index(drop=True)
-            max_capacities_off_df['group'] = max_capacities_off_df['group'].astype(int)
-            wind_off_max_cap_value = float(max_capacities_off_df.loc[max_capacities_off_df['group'] == group, 'capacity'].iloc[0])
+            if country in pilot_countries:
+                max_capacities_on_df.columns = max_capacities_on_df.iloc[0]
+                max_capacities_on_df = max_capacities_on_df[1:].reset_index(drop=True)
+                max_capacities_on_df['group'] = max_capacities_on_df['group'].astype(int)
+                wind_on_max_cap_value = float(max_capacities_on_df.loc[max_capacities_on_df['group'] == group, 'capacity'].iloc[0])
+        
+                max_capacities_off_df.columns = max_capacities_off_df.iloc[0]
+                max_capacities_off_df = max_capacities_off_df[1:].reset_index(drop=True)
+                max_capacities_off_df['group'] = max_capacities_off_df['group'].astype(int)
+                wind_off_max_cap_value = float(max_capacities_off_df.loc[max_capacities_off_df['group'] == group, 'capacity'].iloc[0])
+            else:
+                max_capacities_on_df.columns = max_capacities_on_df.iloc[0]
+                max_capacities_on_df = max_capacities_on_df[1:].reset_index(drop=True)
+                max_capacities_on_df['group'] = max_capacities_on_df['group'].astype(int)
+                wind_on_max_cap_value = float((max_capacities_on_df.loc[max_capacities_on_df['group'] == group, 2050].iloc[0]) / 1000000)
+        
+                max_capacities_off_df.columns = max_capacities_off_df.iloc[0]
+                max_capacities_off_df = max_capacities_off_df[1:].reset_index(drop=True)
+                max_capacities_off_df['group'] = max_capacities_off_df['group'].astype(int)
+                wind_off_max_cap_value = float((max_capacities_off_df.loc[max_capacities_off_df['group'] == group, 2050].iloc[0]) / 1000000)
             
             # Find parameters.csv files and input data
             wind_on_parameters_filename = os.path.join(stevfns_inputs, f"RE_WIND_Onshore_Lim_{group}", 'parameters.csv')
@@ -285,12 +296,125 @@ def get_wind_inputs(countries, scenario):
             
     return
 
+def get_average_wind_inputs(countries, scenario):
+    '''
+    Averages every two bins of wind data and writes results to STEVFNs input folders
+    for both onshore and offshore wind.
+
+    Parameters
+    ----------
+    countries : list of str
+        ISO3 country codes (e.g., ['USA', 'KEN'])
+    scenario : str
+        CAPEX scenario ('high', 'medium', or 'low')
+
+    Returns
+    -------
+    None
+    '''
+    for country in countries:
+        lat = lat_lon_df.loc['lat', country]
+        lon = lat_lon_df.loc['lon', country]
+
+        lat = np.int64(np.round(lat / 0.5)) * 0.5
+        lon = np.int64(np.round(lon / 0.625)) * 0.625
+        lat = min(max(lat, -90.0), 90.0)
+        lon = min(max(lon, -180.0), 179.375)
+
+        # === ONSHORE DATA ===
+        WindOnshore_CF_df = pd.read_csv(os.path.join(raw_data_folder, 'res_analysis', country, 'windonshore', 'capacity_factor_binned.csv'), header=None).drop([0, 1], axis=1).drop([0], axis=0).T.astype(float)
+        WindOnshore_CF_df.columns = list(range(WindOnshore_CF_df.shape[1]))
+
+        wind_on_capex_df = pd.read_csv(os.path.join(raw_data_folder, 'res_analysis', country, 'windonshore', 'capex_binned.csv'), header=None)
+        wind_on_capex_df.columns = wind_on_capex_df.iloc[0]
+        wind_on_capex_df = wind_on_capex_df[1:].reset_index(drop=True)
+        wind_on_capex_df['group'] = wind_on_capex_df['group'].astype(int)
+
+        max_capacities_on_df = pd.read_csv(os.path.join(raw_data_folder, 'res_analysis', country, 'windonshore', 'capacity_binned.csv'), header=None)
+        max_capacities_on_df.columns = max_capacities_on_df.iloc[0]
+        max_capacities_on_df = max_capacities_on_df[1:].reset_index(drop=True)
+        max_capacities_on_df['group'] = max_capacities_on_df['group'].astype(int)
+
+        # === OFFSHORE DATA ===
+        if country not in land_locked_countries:
+            WindOffshore_CF_df = pd.read_csv(os.path.join(raw_data_folder, 'res_analysis', country, 'windoffshore', 'capacity_factor_binned.csv'), header=None).drop([0, 1], axis=1).drop([0], axis=0).T.astype(float)
+            WindOffshore_CF_df.columns = list(range(WindOffshore_CF_df.shape[1]))
+
+            wind_off_capex_df = pd.read_csv(os.path.join(raw_data_folder, 'res_analysis', country, 'windoffshore', 'capex_binned.csv'), header=None)
+            wind_off_capex_df.columns = wind_off_capex_df.iloc[0]
+            wind_off_capex_df = wind_off_capex_df[1:].reset_index(drop=True)
+            wind_off_capex_df['group'] = wind_off_capex_df['group'].astype(int)
+
+            max_capacities_off_df = pd.read_csv(os.path.join(raw_data_folder, 'res_analysis', country, 'windoffshore', 'capacity_binned.csv'), header=None)
+            max_capacities_off_df.columns = max_capacities_off_df.iloc[0]
+            max_capacities_off_df = max_capacities_off_df[1:].reset_index(drop=True)
+            max_capacities_off_df['group'] = max_capacities_off_df['group'].astype(int)
+
+        # === BIN AVERAGING ===
+        for group in range(0, 10, 2):
+            avg_group = group // 2
+
+            # --- Onshore ---
+            avg_on_cf = (WindOnshore_CF_df[group] + WindOnshore_CF_df[group + 1]) / 2.0
+            on_cf_dir = os.path.join(stevfns_inputs, f"RE_WIND_Onshore_Lim_{avg_group}", "profiles", "WINDOUT", f'lat{lat}')
+            os.makedirs(on_cf_dir, exist_ok=True)
+            avg_on_cf.to_csv(os.path.join(on_cf_dir, f'WINDOUT_lat{lat}_lon{lon}.csv'), index=False, header=False)
+
+            on_capex_vals = wind_on_capex_df.loc[
+                (wind_on_capex_df['scenario'] == scenario) &
+                (wind_on_capex_df['group'].isin([group, group + 1])),
+                'capex_2050'].astype(float) / 1000
+            avg_on_capex = on_capex_vals.mean()
+
+            if country in pilot_countries:
+                on_cap_vals = max_capacities_on_df.loc[max_capacities_on_df['group'].isin([group, group + 1]), 'capacity'].astype(float)
+            else:
+                on_cap_vals = max_capacities_on_df.loc[max_capacities_on_df['group'].isin([group, group + 1]), '2050'].astype(float) / 1e6
+            total_on_cap = on_cap_vals.sum()
+
+            on_param_file = os.path.join(stevfns_inputs, f"RE_WIND_Onshore_Lim_{avg_group}", 'parameters.csv')
+            on_param_df = pd.read_csv(on_param_file)
+            on_param_df.loc[on_param_df['location_name'] == country, 'sizing_constant'] = avg_on_capex
+            on_param_df.loc[on_param_df['location_name'] == country, 'maximum_size'] = total_on_cap
+            on_param_df.to_csv(on_param_file, index=False)
+
+            # --- Offshore ---
+            if country not in land_locked_countries:
+                avg_off_cf = (WindOffshore_CF_df[group] + WindOffshore_CF_df[group + 1]) / 2.0
+                off_cf_dir = os.path.join(stevfns_inputs, f"RE_WIND_Offshore_Lim_{avg_group}", "profiles", "WINDOUT", f'lat{lat}')
+                os.makedirs(off_cf_dir, exist_ok=True)
+                avg_off_cf.to_csv(os.path.join(off_cf_dir, f'WINDOUT_lat{lat}_lon{lon}.csv'), index=False, header=False)
+
+                off_capex_vals = wind_off_capex_df.loc[
+                    (wind_off_capex_df['scenario'] == scenario) &
+                    (wind_off_capex_df['group'].isin([group, group + 1])),
+                    'capex_2050'].astype(float) / 1000
+                avg_off_capex = off_capex_vals.mean()
+
+                if country in pilot_countries:
+                    off_cap_vals = max_capacities_off_df.loc[max_capacities_off_df['group'].isin([group, group + 1]), 'capacity'].astype(float)
+                else:
+                    off_cap_vals = max_capacities_off_df.loc[max_capacities_off_df['group'].isin([group, group + 1]), '2050'].astype(float) / 1e6
+                total_off_cap = off_cap_vals.sum()
+
+                off_param_file = os.path.join(stevfns_inputs, f"RE_WIND_Offshore_Lim_{avg_group}", 'parameters.csv')
+                off_param_df = pd.read_csv(off_param_file)
+                off_param_df.loc[off_param_df['location_name'] == country, 'sizing_constant'] = avg_off_capex
+                off_param_df.loc[off_param_df['location_name'] == country, 'maximum_size'] = total_off_cap
+                off_param_df.to_csv(off_param_file, index=False)
+
+    return
+
+
 
 #%%
-countries = ['IDN', 'VNM', 'THA', 'KHM']
+# countries = ['KOR']
+# countries_avg = ['VNM', 'THA', 'KHM', 'IDN']
 
 
 # get_pv_inputs(countries)
-get_wind_inputs(countries, 'high')
+# get_wind_inputs(countries, 'high')
+# get_average_wind_inputs(countries_avg, 'high')
+
 
 
